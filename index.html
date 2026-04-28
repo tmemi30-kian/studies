@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة كيان الماسية للتحليل العقاري</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* Fallback: ensure Arabic renders correctly even without Tajawal */
+        #pdfTemplate, #pdfTemplate * {
+            font-family: 'Tajawal', 'Arial Unicode MS', 'Segoe UI', Tahoma, Arial, sans-serif !important;
+        }
+    </style>
+    <style>
+        :root {
+            --kayan-brown: #c68a64;
+            --kayan-blue: #1e3a5f;
+            --kayan-dark: #111827;
+        }
+        body { font-family: 'Tajawal', sans-serif; background-color: #fcfcfc; color: var(--kayan-dark); margin: 0; padding: 0; }
+        .kayan-bg-blue { background-color: var(--kayan-blue); }
+        .kayan-text-brown { color: var(--kayan-brown); }
+        .kayan-btn { background-color: var(--kayan-brown); transition: all 0.3s ease; }
+        .kayan-btn:hover { background-color: #b07652; transform: translateY(-2px); }
+        .glass-card { background: white; border: 1px solid #eee; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); }
+        .sidebar-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 12px; padding: 10px; width: 100%; outline: none; transition: border 0.3s; }
+        .sidebar-input:focus { border-color: var(--kayan-brown); }
+        
+        /* PDF Portrait Styles */
+        #pdfTemplate { 
+            display: none; 
+            background: white; 
+            width: 210mm; 
+            padding: 14mm; 
+            margin: 0 auto;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .pdf-header { border-bottom: 3px solid var(--kayan-blue); padding-bottom: 18px; margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; }
+        .pdf-section-title { font-size: 20px; font-weight: 800; border-right: 5px solid var(--kayan-brown); padding-right: 12px; margin-bottom: 18px; color: var(--kayan-blue); background: #f8fafc; padding: 10px 14px; }
+        .pdf-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+        .pdf-card { border: 1px solid #ddd; padding: 20px; border-radius: 14px; text-align: center; }
+        
+        .status-excellent { background-color: #d1fae5; color: #065f46; border: 1px solid #10b981; }
+        .status-good { background-color: #dbeafe; color: #1e40af; border: 1px solid #3b82f6; }
+        .status-weak { background-color: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
+        .status-loss { background-color: #fee2e2; color: #991b1b; border: 1px solid #ef4444; }
+
+        @media print { .no-print { display: none !important; } }
+        /* PDF Landscape Styles */
+        #pdfTemplate {
+            font-family: 'Tajawal', 'Arial Unicode MS', Tahoma, Arial, sans-serif;
+            direction: rtl;
+            background: white;
+            display: none;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+        }
+        .pdf-page {
+            width: 277mm;
+            height: 190mm;
+            padding: 10mm 13mm;
+            box-sizing: border-box;
+            background: white;
+            page-break-after: always;
+            overflow: hidden;
+            position: relative;
+        }
+        .pdf-page:last-child { page-break-after: avoid; }
+        .pdf-hdr {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #1e3a5f;
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+        }
+        .pdf-sec {
+            font-size: 14px;
+            font-weight: 800;
+            border-right: 5px solid #c68a64;
+            padding: 6px 10px;
+            margin-bottom: 12px;
+            color: #1e3a5f;
+            background: #f8fafc;
+        }
+        .pdf-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .pdf-card {
+            border: 1px solid #ddd;
+            padding: 10px 8px;
+            border-radius: 10px;
+            text-align: center;
+            overflow: hidden;
+        }
+        .pdf-boxes {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            height: 78mm;
+        }
+        .pdf-box {
+            border-radius: 12px;
+            padding: 12px;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .pdf-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 11.5px;
+            margin-bottom: 7px;
+            gap: 8px;
+        }
+        .pdf-row span:first-child { flex-shrink: 0; }
+        .pdf-row span:last-child { flex-shrink: 0; text-align: left; }
+        .pdf-tot {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 13px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(0,0,0,0.15);
+            font-weight: 900;
+            gap: 8px;
+        }
+        .pdf-foot {
+            position: absolute;
+            bottom: 8mm;
+            left: 13mm;
+            right: 13mm;
+            border-top: 1px solid #eee;
+            padding-top: 6px;
+            text-align: center;
+            font-size: 9px;
+            color: #aaa;
+        }
+        .pdf-tbl { width: 100%; border-collapse: collapse; font-size: 13px; text-align: right; }
+        .pdf-tbl th { padding: 12px 10px; font-weight: 900; background: #f8fafc; }
+        .pdf-tbl td { padding: 12px 10px; border-bottom: 1px solid #eee; }
+
+    </style>
+</head>
+<body>
+
+    <div class="min-h-screen flex flex-col lg:flex-row">
+        <!-- Sidebar -->
+        <aside class="lg:w-80 w-full kayan-bg-blue text-white p-8 lg:fixed lg:h-full overflow-y-auto z-10 no-print">
+            <div class="mb-10 text-center">
+                <div class="flex flex-col items-center gap-2">
+                    <div class="w-16 h-16 bg-white rounded-xl flex items-center justify-center p-2 mb-2 shadow-xl">
+                        <svg viewBox="0 0 100 100" class="w-full h-full"><path d="M20 80 L50 20 L80 80 H60 L50 60 L40 80 Z" fill="#c68a64"/></svg>
+                    </div>
+                    <h1 class="text-xl font-black tracking-widest text-white">كيان الماسية</h1>
+                    <span class="text-[10px] uppercase tracking-[0.2em] text-slate-400">للتطوير والاستثمار العقاري</span>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div><label class="block text-xs font-bold text-slate-400 mb-2">مساحة الأرض (م²)</label><input type="number" id="area" value="1000" class="sidebar-input"></div>
+                <div><label class="block text-xs font-bold text-slate-400 mb-2">سعر الأرض (ريال)</label><input type="number" id="landP" value="2000000" class="sidebar-input"></div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-2">نسبة ضريبة القيمة المضافة % <span class="text-slate-500 font-normal">(تُضاف على الأرض)</span></label>
+                    <input type="number" id="taxRate" value="15" class="sidebar-input">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-xs font-bold text-slate-400 mb-2">نسبة البناء %</label><input type="number" id="ratio" value="60" class="sidebar-input"></div>
+                    <div><label class="block text-xs font-bold text-slate-400 mb-2">إجمالي عدد الأدوار</label><input type="number" id="floors" value="4" class="sidebar-input"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-2">عدد الأدوار المتكررة <span class="text-slate-500 font-normal">(للإيرادات)</span></label>
+                    <input type="number" id="repeatedFloors" value="3" class="sidebar-input">
+                </div>
+                <div><label class="block text-xs font-bold text-slate-400 mb-2">تكلفة بناء المتر (ريال)</label><input type="number" id="bCost" value="1500" class="sidebar-input"></div>
+                <div><label class="block text-xs font-bold text-slate-400 mb-2">سعر بيع المتر (ريال)</label><input type="number" id="sPrice" value="5000" class="sidebar-input"></div>
+                <div><label class="block text-xs font-bold text-slate-400 mb-2">الفائدة السنوية %</label><input type="number" id="interest" value="5" class="sidebar-input"></div>
+                <div><label class="block text-xs font-bold text-slate-400 mb-2">مدة المشروع (سنوات)</label><input type="number" id="projectYears" value="3" class="sidebar-input"></div>
+                <button onclick="runAnalysis()" class="w-full kayan-btn text-white font-black py-4 rounded-xl shadow-lg mt-4 flex items-center justify-center gap-2"><span>تشغيل التحليل</span></button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 lg:mr-80 p-6 lg:p-12 space-y-8 no-print">
+            <header class="flex justify-between items-center border-b pb-6">
+                <div><h2 class="text-3xl font-black text-slate-900">دراسة استثمارية</h2><p class="text-slate-500 mt-1">كيان الماسية - التميز في الاستثمار العقاري</p></div>
+                <div class="flex items-center gap-3">
+                    <button id="downloadBtn" onclick="exportToPDF()" class="hidden px-6 py-2 bg-slate-900 text-white rounded-full font-bold text-sm flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg">تحميل التقرير PDF</button>
+                    <div id="investStatus" class="hidden px-6 py-2 rounded-full font-black text-sm uppercase tracking-wider"></div>
+                </div>
+            </header>
+
+            <div id="resultsGrid" class="hidden grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                <div class="glass-card p-6 border-b-4 border-amber-600">
+                    <span class="text-xs font-bold text-slate-400 uppercase mb-2 block">إجمالي تكلفة المشروع</span>
+                    <h3 id="resTotalCost" class="text-2xl font-black">0</h3>
+                </div>
+                <div class="glass-card p-6 border-b-4 border-emerald-600">
+                    <span class="text-xs font-bold text-slate-400 uppercase mb-2 block">صافي الربح</span>
+                    <h3 id="resProfit" class="text-2xl font-black">0</h3>
+                    <div id="resMargin" class="text-xs font-bold mt-2 text-slate-500">0% هامش</div>
+                </div>
+                <div class="glass-card p-6 border-b-4 border-blue-500">
+                    <span class="text-xs font-bold text-slate-400 uppercase mb-2 block">معدل العائد (IRR)</span>
+                    <h3 id="resIRR" class="text-2xl font-black text-blue-600">0%</h3>
+                </div>
+                <div class="glass-card p-6 border-b-4 border-indigo-500">
+                    <span class="text-xs font-bold text-slate-400 uppercase mb-2 block">صافي القيمة الحالية (NPV)</span>
+                    <h3 id="resNPV" class="text-2xl font-black text-indigo-600">0</h3>
+                </div>
+            </div>
+
+
+            <!-- تفاصيل الحسابات -->
+            <div id="detailsGrid" class="hidden glass-card p-8">
+                <h4 class="font-black mb-6 flex items-center gap-2"><span class="w-2 h-6 kayan-bg-blue rounded-full"></span> تفاصيل الحسابات خطوة بخطوة</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+
+                    <!-- عمود تكاليف الأرض -->
+                    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-3">
+                        <h5 class="font-black text-amber-800 border-b border-amber-200 pb-2 mb-3">🏡 تكاليف الأرض</h5>
+                        <div class="flex justify-between"><span class="text-slate-500">سعر الأرض</span><span id="d_landP" class="font-bold"></span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">الضريبة (<span id="d_taxRate"></span>%)</span><span id="d_landTax" class="font-bold text-red-500"></span></div>
+                        <div class="flex justify-between border-t border-amber-300 pt-2"><span class="font-black text-amber-800">إجمالي الأرض</span><span id="d_landTotal" class="font-black text-amber-700"></span></div>
+                    </div>
+
+                    <!-- عمود تكاليف البناء -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-5 space-y-3">
+                        <h5 class="font-black text-blue-800 border-b border-blue-200 pb-2 mb-3">🏗️ تكاليف البناء</h5>
+                        <div class="flex justify-between"><span class="text-slate-500">مساحة الدور الكاملة</span><span id="d_floorArea" class="font-bold"></span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">مساحة الدور الصافية (−9%)</span><span id="d_netFloorArea" class="font-bold"></span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">إجمالي الأدوار</span><span id="d_floors" class="font-bold"></span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">سعر بناء المتر</span><span id="d_bCost" class="font-bold"></span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">تكلفة التمويل</span><span id="d_financing" class="font-bold text-red-500"></span></div>
+                        <div class="flex justify-between border-t border-blue-300 pt-2"><span class="font-black text-blue-800">إجمالي البناء</span><span id="d_bCostTotal" class="font-black text-blue-700"></span></div>
+                    </div>
+
+                    <!-- عمود الإيرادات -->
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
+                        <h5 class="font-black text-emerald-800 border-b border-emerald-200 pb-2 mb-3">💰 الإيرادات</h5>
+                        <div class="flex justify-between"><span class="text-slate-500">الأدوار المتكررة</span><span id="d_repeatedFloors" class="font-bold"></span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">الأدوار المتكررة + 0.75</span><span id="d_repeatedPlus" class="font-bold"></span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">المساحة الإيرادية</span><span id="d_revenueArea" class="font-bold"></span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">سعر البيع / م²</span><span id="d_sPrice" class="font-bold"></span></div>
+                        <div class="flex justify-between border-t border-emerald-300 pt-2"><span class="font-black text-emerald-800">إجمالي الإيرادات</span><span id="d_totalRev" class="font-black text-emerald-700"></span></div>
+                    </div>
+                </div>
+
+                <!-- ملخص المعادلات -->
+                <div class="mt-6 bg-slate-50 rounded-2xl p-5 text-xs text-slate-500 space-y-1 font-mono leading-6">
+                    <div id="d_eq1" class="text-slate-600"></div>
+                    <div id="d_eq2" class="text-slate-600"></div>
+                    <div id="d_eq3" class="text-slate-600"></div>
+                    <div id="d_eq4" class="text-slate-600 font-bold text-emerald-700"></div>
+                </div>
+            </div>
+
+            <!-- تفاصيل الحسابات -->
+            <div id="detailsGrid" class="hidden glass-card p-8">
+                <h4 class="font-black mb-6 flex items-center gap-2"><span class="w-2 h-6 kayan-bg-blue rounded-full"></span> تفاصيل الحسابات خطوة بخطوة</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+                    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                        <h5 class="font-black text-amber-800 border-b border-amber-200 pb-2 mb-4">🏡 تكاليف الأرض</h5>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="flex flex-col"><span class="text-slate-400 text-xs mb-1">سعر الأرض</span><span id="d_landP" class="font-bold text-sm"></span></div>
+                            <div class="flex flex-col"><span class="text-slate-400 text-xs mb-1">الضريبة (<span id="d_taxRate"></span>%)</span><span id="d_landTax" class="font-bold text-sm text-red-500"></span></div>
+                            <div class="flex flex-col"><span class="text-amber-800 text-xs font-black mb-1">إجمالي الأرض</span><span id="d_landTotal" class="font-black text-sm text-amber-700"></span></div>
+                        </div>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-5">
+                        <h5 class="font-black text-blue-800 border-b border-blue-200 pb-2 mb-4">🏗️ تكاليف البناء</h5>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="flex flex-col"><span class="text-slate-400 text-xs mb-1">مساحة الدور الكاملة</span><span id="d_floorArea" class="font-bold text-sm"></span></div>
+                            <div class="flex flex-col"><span class="text-slate-400 text-xs mb-1">مساحة الدور الصافية (−9%)</span><span id="d_netFloorArea" class="font-bold text-sm"></span></div>
+                            <div class="flex flex-col"><span class="text-slate-400 text-xs mb-1">إجمالي الأدوار</span><span id="d_floors" class="font-bold text-sm"></span></div>
+                            <div class="flex flex-col"><span class="text-slate-400 text-xs mb-1">سعر بناء المتر</span><span id="d_bCost" class="font-bold text-sm"></span></div>
+                            <div class="flex flex-col"><span class="text-slate-400 text-xs mb-1">تكلفة التمويل</span><span id="d_financing" class="font-bold text-sm text-red-500"></span></div>
+                            <div class="flex flex-col"><span class="text-blue-800 text-xs font-black mb-1">إجمالي البناء</span><span id="d_bCostTotal" class="font-black text-sm text-blue-700"></span></div>
+                        </div>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                        <h5 class="font-black text-emerald-800 border-b border-emerald-200 pb-2 mb-4">💰 الإيرادات</h5>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="flex flex-col"><span class="text-slate-400 text-xs mb-1">الأدوار المتكررة</span><span id="d_repeatedFloors" class="font-bold text-sm"></span></div>
+                            <div class="flex flex-col"><span class="text-slate-400 text-xs mb-1">الأدوار المتكررة + 0.75</span><span id="d_repeatedPlus" class="font-bold text-sm"></span></div>
+                            <div class="flex flex-col"><span class="text-slate-400 text-xs mb-1">المساحة الإيرادية</span><span id="d_revenueArea" class="font-bold text-sm"></span></div>
+                            <div class="flex flex-col"><span class="text-slate-400 text-xs mb-1">سعر البيع / م²</span><span id="d_sPrice" class="font-bold text-sm"></span></div>
+                            <div class="flex flex-col col-span-2"><span class="text-emerald-800 text-xs font-black mb-1">إجمالي الإيرادات</span><span id="d_totalRev" class="font-black text-sm text-emerald-700"></span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-5 bg-slate-50 rounded-2xl p-4 text-xs text-slate-500 space-y-1 font-mono leading-6">
+                    <div id="d_eq1"></div><div id="d_eq2"></div><div id="d_eq3"></div>
+                    <div id="d_eq4" class="font-bold text-emerald-700"></div>
+                </div>
+            </div>
+
+            <div id="sensitivityGrid" class="hidden glass-card p-8 overflow-hidden">
+                <h4 class="font-black mb-6 flex items-center gap-2"><span class="w-2 h-6 kayan-bg-blue rounded-full"></span> تحليل الحساسية (سعر البيع)</h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead><tr class="text-slate-400 border-b"><th class="pb-4 font-black">التغير</th><th class="pb-4 font-black">سعر المتر</th><th class="pb-4 font-black">الربح المتوقع</th><th class="pb-4 font-black">ROI %</th><th class="pb-4 font-black">الحالة</th></tr></thead>
+                        <tbody id="sensitivityBody" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="emptyState" class="flex flex-col items-center justify-center py-32 text-slate-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                <p class="font-bold">أدخل المعطيات واضغط على تشغيل التحليل للبدء</p>
+            </div>
+        </main>
+
+        <!-- PDF: صفحتان بالعرض A4 -->
+        <div id="pdfTemplate">
+
+            <!-- ====== الصفحة الأولى ====== -->
+            <div class="pdf-page">
+                <div class="pdf-hdr">
+                    <div>
+                        <div style="font-size:24px;font-weight:900;color:#1e3a5f;">كيان الماسية</div>
+                        <div style="font-size:12px;color:#c68a64;margin-top:3px;">دراسة استثمارية عقارية متكاملة</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        <div id="pdfInvestStatus" style="font-size:16px;font-weight:900;padding:8px 18px;border-radius:8px;"></div>
+                        <svg viewBox="0 0 100 100" style="width:36px;height:36px;border:2px solid #c68a64;border-radius:7px;padding:4px;"><path d="M20 80 L50 20 L80 80 H60 L50 60 L40 80 Z" fill="#c68a64"/></svg>
+                    </div>
+                </div>
+
+                <div class="pdf-sec">ملخص المؤشرات المالية</div>
+                <div class="pdf-cards">
+                    <div class="pdf-card" style="border-bottom:4px solid #b45309;">
+                        <div style="font-size:11px;color:#666;margin-bottom:6px;">إجمالي تكلفة المشروع</div>
+                        <div id="pdfTotalCost" style="font-size:16px;font-weight:900;color:#b45309;"></div>
+                    </div>
+                    <div class="pdf-card" style="border-bottom:4px solid #059669;">
+                        <div style="font-size:11px;color:#666;margin-bottom:6px;">صافي الربح المتوقع</div>
+                        <div id="pdfProfit" style="font-size:16px;font-weight:900;color:#059669;"></div>
+                        <div id="pdfMargin" style="font-size:11px;color:#666;margin-top:4px;"></div>
+                    </div>
+                    <div class="pdf-card" style="border-bottom:4px solid #2563eb;">
+                        <div style="font-size:11px;color:#666;margin-bottom:6px;">العائد الداخلي (IRR)</div>
+                        <div id="pdfIRR" style="font-size:16px;font-weight:900;color:#2563eb;"></div>
+                    </div>
+                    <div class="pdf-card" style="border-bottom:4px solid #4f46e5;">
+                        <div style="font-size:11px;color:#666;margin-bottom:6px;">صافي القيمة الحالية (NPV)</div>
+                        <div id="pdfNPV" style="font-size:16px;font-weight:900;color:#4f46e5;"></div>
+                    </div>
+                </div>
+
+                <div class="pdf-sec">تفاصيل الحسابات خطوة بخطوة</div>
+                <div class="pdf-boxes">
+                    <div class="pdf-box" style="background:#fffbeb;border:1px solid #fcd34d;">
+                        <div style="font-size:14px;font-weight:900;color:#92400e;border-bottom:1px solid #fcd34d;padding-bottom:7px;margin-bottom:10px;";">🏡 تكاليف الأرض</div>
+                        <div class="pdf-row"><span style="color:#666;">سعر الأرض</span><span id="pdf_d_landP" style="font-weight:700;"></span></div>
+                        <div class="pdf-row"><span style="color:#666;">الضريبة (<span id="pdf_d_taxRate"></span>%)</span><span id="pdf_d_landTax" style="font-weight:700;color:#dc2626;"></span></div>
+                        <div class="pdf-tot" style="color:#92400e;"><span>إجمالي الأرض</span><span id="pdf_d_landTotal" style="color:#b45309;"></span></div>
+                    </div>
+                    <div class="pdf-box" style="background:#eff6ff;border:1px solid #93c5fd;">
+                        <div style="font-size:14px;font-weight:900;color:#1e40af;border-bottom:1px solid #93c5fd;padding-bottom:7px;margin-bottom:10px;";">🏗️ تكاليف البناء</div>
+                        <div class="pdf-row"><span style="color:#666;">مساحة الدور الكاملة</span><span id="pdf_d_floorArea" style="font-weight:700;"></span></div>
+                        <div class="pdf-row"><span style="color:#666;">مساحة الدور الصافية (−9%)</span><span id="pdf_d_netFloorArea" style="font-weight:700;"></span></div>
+                        <div class="pdf-row"><span style="color:#666;">إجمالي الأدوار</span><span id="pdf_d_floors" style="font-weight:700;"></span></div>
+                        <div class="pdf-row"><span style="color:#666;">سعر بناء المتر</span><span id="pdf_d_bCost" style="font-weight:700;"></span></div>
+                        <div class="pdf-row"><span style="color:#666;">تكلفة التمويل</span><span id="pdf_d_financing" style="font-weight:700;color:#dc2626;"></span></div>
+                        <div class="pdf-tot" style="color:#1e40af;"><span>إجمالي البناء</span><span id="pdf_d_bCostTotal" style="color:#1d4ed8;"></span></div>
+                    </div>
+                    <div class="pdf-box" style="background:#f0fdf4;border:1px solid #86efac;">
+                        <div style="font-size:14px;font-weight:900;color:#065f46;border-bottom:1px solid #86efac;padding-bottom:7px;margin-bottom:10px;";">💰 الإيرادات</div>
+                        <div class="pdf-row"><span style="color:#666;">الأدوار المتكررة</span><span id="pdf_d_repeatedFloors" style="font-weight:700;"></span></div>
+                        <div class="pdf-row"><span style="color:#666;">الأدوار المتكررة + 0.75</span><span id="pdf_d_repeatedPlus" style="font-weight:700;"></span></div>
+                        <div class="pdf-row"><span style="color:#666;">المساحة الإيرادية</span><span id="pdf_d_revenueArea" style="font-weight:700;"></span></div>
+                        <div class="pdf-row"><span style="color:#666;">سعر البيع / م²</span><span id="pdf_d_sPrice" style="font-weight:700;"></span></div>
+                        <div class="pdf-tot" style="color:#065f46;"><span>إجمالي الإيرادات</span><span id="pdf_d_totalRev" style="color:#059669;"></span></div>
+                    </div>
+                </div>
+                <div class="pdf-foot">كيان الماسية للتطوير والاستثمار العقاري — الصفحة ١ من ٢</div>
+            </div>
+
+            <!-- ====== الصفحة الثانية ====== -->
+            <div class="pdf-page" style="display:flex; flex-direction:column;">
+                <div class="pdf-hdr">
+                    <div>
+                        <div style="font-size:20px;font-weight:900;color:#1e3a5f;">كيان الماسية</div>
+                        <div style="font-size:11px;color:#c68a64;margin-top:2px;">تحليل الحساسية للمخاطر</div>
+                    </div>
+                    <svg viewBox="0 0 100 100" style="width:32px;height:32px;border:2px solid #c68a64;border-radius:7px;padding:4px;"><path d="M20 80 L50 20 L80 80 H60 L50 60 L40 80 Z" fill="#c68a64"/></svg>
+                </div>
+
+                <div class="pdf-sec">تحليل الحساسية (سعر البيع)</div>
+                <table class="pdf-tbl">
+                    <thead><tr style="border-bottom:2px solid #eee;">
+                        <th>التغير</th><th>سعر المتر</th><th>الربح المتوقع</th><th>ROI %</th><th>الحالة</th>
+                    </tr></thead>
+                    <tbody id="pdfSensitivityBody"></tbody>
+                </table>
+                <div style="margin-top:auto; padding-top:8px; border-top:1px solid #eee; text-align:center; font-size:9px; color:#aaa;">تم استخراج هذه الدراسة آلياً عبر منصة كيان الماسية للتحليل العقاري — جميع الحقوق محفوظة — الصفحة ٢ من ٢</div>
+            </div>
+
+        </div>
+
+    <script>
+        Chart.register(ChartDataLabels);
+        let charts = {};
+
+        function runAnalysis() {
+            const area            = parseFloat(document.getElementById('area').value) || 0;
+            const landP           = parseFloat(document.getElementById('landP').value) || 0;
+            const taxRate         = parseFloat(document.getElementById('taxRate').value) || 0;
+            const ratio           = parseFloat(document.getElementById('ratio').value) || 0;
+            const floors          = parseFloat(document.getElementById('floors').value) || 0;
+            const repeatedFloors  = parseFloat(document.getElementById('repeatedFloors').value) || 0;
+            const bCost           = parseFloat(document.getElementById('bCost').value) || 0;
+            const sPrice          = parseFloat(document.getElementById('sPrice').value) || 0;
+            const interest        = parseFloat(document.getElementById('interest').value) || 0;
+            const projectYears    = parseFloat(document.getElementById('projectYears').value) || 3;
+
+            // الأرض + الضريبة
+            const landTax      = landP * (taxRate / 100);
+            const landPWithTax = landP + landTax;
+
+            // مساحة الدور الكاملة والصافية (−9%)
+            const floorArea    = area * (ratio / 100);
+            const netFloorArea = floorArea * 0.91;
+
+            // تكلفة البناء = إجمالي الأدوار × مساحة الدور × سعر البناء
+            const bCostTotal   = floors * floorArea * bCost;
+
+            // الإيرادات = سعر البيع × (الأدوار المتكررة + 0.75) × مساحة الدور الصافية
+            const revenueArea  = (repeatedFloors + 0.75) * netFloorArea;
+            const totalRev     = sPrice * revenueArea;
+
+            // التمويل والإجمالي
+            const financing    = (landPWithTax + bCostTotal) * (interest / 100) * projectYears;
+            const totalInv     = landPWithTax + bCostTotal + financing;
+            const profit       = totalRev - totalInv;
+            const margin       = totalInv > 0 ? (profit / totalInv) * 100 : 0;
+
+            // IRR بالبحث الثنائي
+            let irrRate = 0;
+            const baseInv = landPWithTax + bCostTotal;
+            if (totalRev > 0 && baseInv > 0) {
+                let lo = -0.99, hi = 10;
+                for (let i = 0; i < 200; i++) {
+                    const mid = (lo + hi) / 2;
+                    const npvMid = -baseInv + totalRev / Math.pow(1 + mid, projectYears);
+                    if (npvMid > 0) lo = mid; else hi = mid;
+                }
+                irrRate = (lo + hi) / 2;
+            }
+            const irr = irrRate * 100;
+
+            // NPV بمعدل الفائدة
+            const discountRate = interest / 100;
+            const npv = -baseInv + totalRev / Math.pow(1 + discountRate, projectYears);
+
+            const f  = n => new Intl.NumberFormat('ar-SA').format(Math.round(n)) + " ريال";
+            const fm = n => new Intl.NumberFormat('ar-SA').format(+n.toFixed(1)) + " م²";
+
+            // حالة الاستثمار
+            let statusText = "", statusClass = "";
+            if (margin > 30)      { statusText = "استثمار ممتاز 💎"; statusClass = "status-excellent"; }
+            else if (margin > 15) { statusText = "استثمار مقبول ✅"; statusClass = "status-good"; }
+            else if (margin > 0)  { statusText = "استثمار ضعيف ⚠️"; statusClass = "status-weak"; }
+            else                  { statusText = "استثمار خاسر 🚫"; statusClass = "status-loss"; }
+
+            // تحديث الواجهة
+            document.getElementById('resTotalCost').innerText = f(totalInv);
+            document.getElementById('resProfit').innerText    = f(profit);
+            document.getElementById('resMargin').innerText    = margin.toFixed(1) + "% هامش ربح";
+            document.getElementById('resIRR').innerText       = irr.toFixed(1) + "%";
+            document.getElementById('resNPV').innerText       = f(npv);
+
+            const statusEl = document.getElementById('investStatus');
+            statusEl.innerText   = statusText;
+            statusEl.className   = "px-6 py-2 rounded-full font-black text-sm uppercase tracking-wider " + statusClass;
+            statusEl.classList.remove('hidden');
+
+            // تفاصيل الحسابات (الشاشة)
+            const safeSet = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+            safeSet('d_landP',          f(landP));
+            safeSet('d_taxRate',        taxRate);
+            safeSet('d_landTax',        f(landTax));
+            safeSet('d_landTotal',      f(landPWithTax));
+            safeSet('d_floorArea',      fm(floorArea));
+            safeSet('d_netFloorArea',   fm(netFloorArea));
+            safeSet('d_floors',         floors + " دور");
+            safeSet('d_bCost',          f(bCost));
+            safeSet('d_financing',      f(financing));
+            safeSet('d_bCostTotal',     f(bCostTotal));
+            safeSet('d_repeatedFloors', repeatedFloors + " دور");
+            safeSet('d_repeatedPlus',   repeatedFloors + 0.75);
+            safeSet('d_revenueArea',    fm(revenueArea));
+            safeSet('d_sPrice',         f(sPrice));
+            safeSet('d_totalRev',       f(totalRev));
+            safeSet('d_eq1', "تكلفة البناء = " + floors + " × " + fm(floorArea) + " × " + Math.round(bCost).toLocaleString() + " = " + f(bCostTotal));
+            safeSet('d_eq2', "مساحة صافية = " + fm(floorArea) + " × 91% = " + fm(netFloorArea));
+            safeSet('d_eq3', "مساحة إيرادية = (" + repeatedFloors + " + 0.75) × " + fm(netFloorArea) + " = " + fm(revenueArea));
+            safeSet('d_eq4', "الإيرادات = " + Math.round(sPrice).toLocaleString() + " × " + fm(revenueArea) + " = " + f(totalRev));
+
+            // تحديث PDF
+            safeSet('pdfTotalCost', f(totalInv));
+            safeSet('pdfProfit',    f(profit));
+            safeSet('pdfMargin',    margin.toFixed(1) + "% هامش ربح");
+            safeSet('pdfIRR',       irr.toFixed(1) + "%");
+            safeSet('pdfNPV',       f(npv));
+
+            const pdfStatusEl = document.getElementById('pdfInvestStatus');
+            if (pdfStatusEl) {
+                pdfStatusEl.innerText = statusText;
+                pdfStatusEl.className = statusClass;
+                pdfStatusEl.style.cssText += "; padding:15px; border-radius:12px; font-size:20px; font-weight:900; text-align:center;";
+            }
+
+            // تفاصيل PDF
+            safeSet('pdf_d_landP',          f(landP));
+            safeSet('pdf_d_taxRate',        taxRate);
+            safeSet('pdf_d_landTax',        f(landTax));
+            safeSet('pdf_d_landTotal',      f(landPWithTax));
+            safeSet('pdf_d_floorArea',      fm(floorArea));
+            safeSet('pdf_d_netFloorArea',   fm(netFloorArea));
+            safeSet('pdf_d_floors',         floors + " دور");
+            safeSet('pdf_d_bCost',          f(bCost));
+            safeSet('pdf_d_financing',      f(financing));
+            safeSet('pdf_d_bCostTotal',     f(bCostTotal));
+            safeSet('pdf_d_repeatedFloors', repeatedFloors + " دور");
+            safeSet('pdf_d_repeatedPlus',   repeatedFloors + 0.75);
+            safeSet('pdf_d_revenueArea',    fm(revenueArea));
+            safeSet('pdf_d_sPrice',         f(sPrice));
+            safeSet('pdf_d_totalRev',       f(totalRev));
+
+            document.getElementById('downloadBtn').classList.remove('hidden');
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('resultsGrid').classList.remove('hidden');
+            document.getElementById('detailsGrid').classList.remove('hidden');
+            document.getElementById('sensitivityGrid').classList.remove('hidden');
+
+            updateSensitivity(sPrice, totalInv, revenueArea);
+        }
+
+        function updateSensitivity(basePrice, inv, area) {
+            const body = document.getElementById('sensitivityBody');
+            const pdfBody = document.getElementById('pdfSensitivityBody');
+            body.innerHTML = ''; pdfBody.innerHTML = '';
+            [-0.2, -0.1, 0, 0.1, 0.2].forEach(s => {
+                const p = basePrice * (1 + s);
+                const prof = (area * p) - inv;
+                const roi = (prof / inv) * 100;
+                let status = "", color = "";
+                if (roi > 30) { status = "ممتاز"; color = "#059669"; }
+                else if (roi > 15) { status = "مقبول"; color = "#2563eb"; }
+                else if (roi > 0) { status = "ضعيف"; color = "#d97706"; }
+                else { status = "خسارة"; color = "#dc2626"; }
+
+                const row = `<td>${(s*100).toFixed(0)}%</td><td>${Math.round(p).toLocaleString()} ريال</td><td>${Math.round(prof).toLocaleString()} ريال</td><td>${roi.toFixed(1)}%</td><td style="color: ${color}; font-weight: bold;">${status}</td>`;
+                body.innerHTML += `<tr class="py-3 border-b">${row}</tr>`;
+                pdfBody.innerHTML += `<tr style="border-bottom: 1px solid #eee;"><td style="padding: 11px; font-size: 13px;">${(s*100).toFixed(0)}%</td><td style="padding: 11px; font-size: 13px;">${Math.round(p).toLocaleString()} ريال</td><td style="padding: 11px; font-size: 13px;">${Math.round(prof).toLocaleString()} ريال</td><td style="padding: 11px; font-size: 13px;">${roi.toFixed(1)}%</td><td style="padding: 11px; font-size: 13px; font-weight: bold; color: ${color}">${status}</td></tr>`;
+            });
+        }
+
+        async function exportToPDF() {
+            const btn = document.getElementById('downloadBtn');
+            btn.innerText = "جاري التجهيز...";
+            btn.disabled = true;
+
+            const el = document.getElementById('pdfTemplate');
+            el.style.display = 'block';
+
+            // Force font load by rendering test text
+            const testEl = document.createElement('div');
+            testEl.style.cssText = 'position:fixed;top:-9999px;font-family:Tajawal,Arial,sans-serif;font-size:14px;';
+            testEl.textContent = 'كيان الماسية اختبار';
+            document.body.appendChild(testEl);
+
+            // Wait for fonts
+            try { await document.fonts.ready; } catch(e) {}
+            await new Promise(r => setTimeout(r, 800));
+            document.body.removeChild(testEl);
+
+            // Render each page separately for better quality
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+            const pdfW = 297, pdfH = 210;
+
+            const pages = el.querySelectorAll('.pdf-page');
+            try {
+                for (let i = 0; i < pages.length; i++) {
+                    if (i > 0) doc.addPage();
+                    const canvas = await html2canvas(pages[i], {
+                        scale: 3,
+                        useCORS: true,
+                        allowTaint: true,
+                        letterRendering: true,
+                        scrollX: 0,
+                        scrollY: -window.scrollY,
+                        backgroundColor: '#ffffff',
+                        width: pages[i].offsetWidth,
+                        height: pages[i].offsetHeight,
+                        windowWidth: document.documentElement.scrollWidth
+                    });
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    const imgH = (canvas.height / canvas.width) * pdfW;
+                    doc.addImage(imgData, 'JPEG', 0, 0, pdfW, Math.min(imgH, pdfH));
+                }
+                doc.save('دراسة_استثمارية_كيان_الماسية.pdf');
+            } finally {
+                el.style.display = 'none';
+                btn.innerText = "تحميل التقرير PDF";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
